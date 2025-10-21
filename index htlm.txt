@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio BNB - Swap Multi-DEX</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #f3ba2f 0%, #121212 100%); 
+            color: #fff; 
+            padding: 20px; 
+            min-height: 100vh; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { 
+            background: rgba(0,0,0,0.8); 
+            padding: 30px; 
+            border-radius: 20px; 
+            border: 3px solid #f3ba2f; 
+            margin-bottom: 20px;
+        }
+        h1 { font-size: 2.5em; text-align: center; margin-bottom: 20px; }
+        .status { 
+            text-align: center; 
+            padding: 20px; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 15px; 
+            margin: 20px 0;
+        }
+        .status.connected { background: rgba(16, 185, 129, 0.2); border: 3px solid #10b981; }
+        .status.disconnected { background: rgba(239, 68, 68, 0.2); border: 3px solid #ef4444; }
+        button { 
+            background: linear-gradient(135deg, #f3ba2f 0%, #d4a02a 100%); 
+            color: #000; 
+            border: none; 
+            padding: 15px 40px; 
+            border-radius: 15px; 
+            font-size: 1.1em; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: all 0.3s; 
+            margin: 5px;
+        }
+        button:hover { transform: translateY(-2px); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-disconnect { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+        .btn-swap { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+        .wallet-info, .swap-section { 
+            background: rgba(0,0,0,0.6); 
+            padding: 25px; 
+            border-radius: 15px; 
+            margin-top: 20px;
+            border: 2px solid rgba(243, 186, 47, 0.3);
+        }
+        .info-row { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 12px 0; 
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .info-row:last-child { border-bottom: none; }
+        .label { color: #cbd5e1; }
+        .value { color: #f3ba2f; font-weight: bold; font-family: monospace; }
+        .message { 
+            padding: 15px; 
+            border-radius: 10px; 
+            margin: 15px 0; 
+            text-align: center; 
+            font-weight: bold;
+        }
+        .error { background: rgba(239, 68, 68, 0.3); border: 2px solid #ef4444; }
+        .success { background: rgba(16, 185, 129, 0.3); border: 2px solid #10b981; }
+        .warning { background: rgba(245, 158, 11, 0.3); border: 2px solid #f59e0b; }
+        
+        .dex-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .dex-btn {
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(243, 186, 47, 0.3);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .dex-btn:hover { border-color: #f3ba2f; transform: scale(1.05); }
+        .dex-btn.active { background: rgba(243, 186, 47, 0.3); border-color: #f3ba2f; }
+        .dex-name { font-size: 1.2em; font-weight: bold; margin-bottom: 5px; }
+        .dex-fee { font-size: 0.9em; color: #10b981; }
+        
+        .swap-input-group {
+            background: rgba(0,0,0,0.4);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        input, select {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(243, 186, 47, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1em;
+            width: 100%;
+            margin-top: 10px;
+        }
+        select option { background: #1a1a1a; color: white; }
+        
+        .quote-box {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid #10b981;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        .quote-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3ba2f;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💼 Portfolio BNB - Swap Multi-DEX</h1>
+            
+            <div id="status" class="status disconnected">
+                <h2>🔌 Wallet non connecté</h2>
+            </div>
+            
+            <div style="text-align: center;">
+                <button id="connectBtn">🦊 Connecter MetaMask</button>
+                <button id="disconnectBtn" class="btn-disconnect" style="display: none;">❌ Déconnecter</button>
+            </div>
+            
+            <div id="walletInfo" class="wallet-info" style="display: none;">
+                <div class="info-row">
+                    <span class="label">🔑 Adresse:</span>
+                    <span class="value" id="walletAddress">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">🌐 Réseau:</span>
+                    <span class="value" id="network">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">💰 Solde:</span>
+                    <span class="value" id="balance">-</span>
+                </div>
+            </div>
+            
+            <div id="message"></div>
+        </div>
+        
+        <div id="swapSection" class="swap-section" style="display: none;">
+            <h2 style="color: #f3ba2f; margin-bottom: 20px;">🔄 Swap Crypto Multi-DEX</h2>
+            
+            <h3 style="margin-bottom: 15px;">Choisir l'agrégateur:</h3>
+            <div class="dex-selector">
+                <div class="dex-btn active" data-dex="1inch">
+                    <div class="dex-name">🦄 1inch</div>
+                    <div class="dex-fee">Meilleur prix</div>
+                </div>
+                <div class="dex-btn" data-dex="paraswap">
+                    <div class="dex-name">🔷 ParaSwap</div>
+                    <div class="dex-fee">Multi-path</div>
+                </div>
+                <div class="dex-btn" data-dex="kyberswap">
+                    <div class="dex-name">⚡ KyberSwap</div>
+                    <div class="dex-fee">0.1% fees</div>
+                </div>
+                <div class="dex-btn" data-dex="pancakeswap">
+                    <div class="dex-name">🥞 PancakeSwap</div>
+                    <div class="dex-fee">BSC natif</div>
+                </div>
+            </div>
+            
+            <div class="swap-input-group">
+                <label class="label">Vous envoyez:</label>
+                <input type="number" id="fromAmount" placeholder="0.0" step="any">
+                <select id="fromToken">
+                    <option value="ETH">ETH - Ethereum</option>
+                    <option value="USDT">USDT - Tether</option>
+                    <option value="USDC">USDC - USD Coin</option>
+                    <option value="DAI">DAI - Dai</option>
+                </select>
+            </div>
+            
+            <div style="text-align: center; font-size: 2em; margin: 10px 0;">⬇️</div>
+            
+            <div class="swap-input-group">
+                <label class="label">Vous recevez (estimation):</label>
+                <input type="number" id="toAmount" placeholder="0.0" readonly>
+                <select id="toToken">
+                    <option value="USDT">USDT - Tether</option>
+                    <option value="USDC">USDC - USD Coin</option>
+                    <option value="DAI">DAI - Dai</option>
+                    <option value="ETH">ETH - Ethereum</option>
+                </select>
+            </div>
+            
+            <div id="quoteBox" class="quote-box" style="display: none;">
+                <div class="quote-row">
+                    <span>Prix:</span>
+                    <span id="quoteRate">-</span>
+                </div>
+                <div class="quote-row">
+                    <span>Frais estimés:</span>
+                    <span id="quoteFee">-</span>
+                </div>
+                <div class="quote-row">
+                    <span>Slippage (max):</span>
+                    <span>1%</span>
+                </div>
+                <div class="quote-row">
+                    <span style="color: #4ade80;">Vous recevez (min):</span>
+                    <span id="quoteMin" style="color: #4ade80; font-weight: bold;">-</span>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="getQuoteBtn" class="btn-swap">💹 Obtenir le Prix</button>
+                <button id="executeSwapBtn" class="btn-swap" style="display: none;">🔄 Exécuter le Swap</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAccount = null;
+        let currentChainId = null;
+        let selectedDex = '1inch';
+        let currentQuote = null;
+        
+        // Token addresses sur Ethereum Mainnet
+        const TOKEN_ADDRESSES = {
+            'ETH': '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+            'USDT': '0xdac17f958d2ee523a2206206994597c13d831ec7',
+            'USDC': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            'DAI': '0x6b175474e89094c44da98b954eedeac495271d0f'
+        };
+        
+        // Event listeners
+        document.getElementById('connectBtn').addEventListener('click', connectMetaMask);
+        document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+        document.getElementById('getQuoteBtn').addEventListener('click', getQuote);
+        document.getElementById('executeSwapBtn').addEventListener('click', executeSwap);
+        document.getElementById('fromAmount').addEventListener('input', resetQuote);
+        document.getElementById('fromToken').addEventListener('change', resetQuote);
+        document.getElementById('toToken').addEventListener('change', resetQuote);
+        
+        // DEX selector
+        document.querySelectorAll('.dex-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.dex-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedDex = this.dataset.dex;
+                resetQuote();
+            });
+        });
+        
+        window.addEventListener('load', function() {
+            if (typeof window.ethereum !== 'undefined') {
+                window.ethereum.on('accountsChanged', handleAccountsChanged);
+                window.ethereum.on('chainChanged', () => window.location.reload());
+            } else {
+                showMessage('⚠️ MetaMask non installé!', 'error');
+            }
+        });
+
+        async function connectMetaMask() {
+            if (typeof window.ethereum === 'undefined') {
+                alert('MetaMask non installé!');
+                return;
+            }
+
+            try {
+                showMessage('🔄 Connexion...', 'warning');
+                
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (!accounts || accounts.length === 0) return;
+
+                currentAccount = accounts[0];
+                currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+                
+                const balanceWei = await window.ethereum.request({
+                    method: 'eth_getBalance',
+                    params: [currentAccount, 'latest']
+                });
+                
+                const balance = parseInt(balanceWei, 16) / 1e18;
+                updateUI(currentAccount, currentChainId, balance);
+                showMessage('✅ Connecté!', 'success');
+                
+                document.getElementById('swapSection').style.display = 'block';
+
+            } catch (error) {
+                if (error.code === 4001) {
+                    showMessage('❌ Connexion refusée', 'error');
+                } else {
+                    showMessage('❌ ' + error.message, 'error');
+                }
+            }
+        }
+
+        function updateUI(account, chainId, balance) {
+            document.getElementById('status').className = 'status connected';
+            document.getElementById('status').innerHTML = '<h2>✅ Wallet connecté!</h2>';
+            document.getElementById('connectBtn').style.display = 'none';
+            document.getElementById('disconnectBtn').style.display = 'inline-block';
+            document.getElementById('walletInfo').style.display = 'block';
+            
+            document.getElementById('walletAddress').textContent = 
+                account.substring(0, 6) + '...' + account.substring(38);
+            
+            const networks = {
+                '0x1': 'Ethereum Mainnet',
+                '0x38': 'BSC Mainnet',
+                '0x89': 'Polygon'
+            };
+            
+            document.getElementById('network').textContent = networks[chainId] || 'Chain ' + parseInt(chainId, 16);
+            document.getElementById('balance').textContent = balance.toFixed(6) + ' ETH';
+        }
+
+        function disconnect() {
+            currentAccount = null;
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').innerHTML = '<h2>🔌 Non connecté</h2>';
+            document.getElementById('connectBtn').style.display = 'inline-block';
+            document.getElementById('disconnectBtn').style.display = 'none';
+            document.getElementById('walletInfo').style.display = 'none';
+            document.getElementById('swapSection').style.display = 'none';
+            document.getElementById('message').innerHTML = '';
+        }
+
+        function handleAccountsChanged(accounts) {
+            if (accounts.length === 0) disconnect();
+            else connectMetaMask();
+        }
+
+        function resetQuote() {
+            document.getElementById('toAmount').value = '';
+            document.getElementById('quoteBox').style.display = 'none';
+            document.getElementById('executeSwapBtn').style.display = 'none';
+            currentQuote = null;
+        }
+
+        async function getQuote() {
+            const fromToken = document.getElementById('fromToken').value;
+            const toToken = document.getElementById('toToken').value;
+            const amount = parseFloat(document.getElementById('fromAmount').value);
+            
+            if (!amount || amount <= 0) {
+                showMessage('⚠️ Entrez un montant valide', 'warning');
+                return;
+            }
+            
+            if (fromToken === toToken) {
+                showMessage('⚠️ Choisissez deux tokens différents', 'warning');
+                return;
+            }
+            
+            const btn = document.getElementById('getQuoteBtn');
+            btn.innerHTML = '<span class="loading"></span> Recherche du meilleur prix...';
+            btn.disabled = true;
+            
+            try {
+                showMessage(`🔍 Recherche du meilleur prix via ${selectedDex}...`, 'warning');
+                
+                // Appel API selon le DEX sélectionné
+                let quote;
+                if (selectedDex === '1inch') {
+                    quote = await get1inchQuote(fromToken, toToken, amount);
+                } else if (selectedDex === 'paraswap') {
+                    quote = await getParaSwapQuote(fromToken, toToken, amount);
+                } else {
+                    // Simulation pour les autres DEX
+                    quote = await simulateQuote(fromToken, toToken, amount);
+                }
+                
+                if (quote) {
+                    displayQuote(quote);
+                    currentQuote = quote;
+                    showMessage('✅ Prix obtenu!', 'success');
+                } else {
+                    showMessage('❌ Impossible d\'obtenir un prix', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('❌ Erreur: ' + error.message, 'error');
+            } finally {
+                btn.innerHTML = '💹 Obtenir le Prix';
+                btn.disabled = false;
+            }
+        }
+
+        async function get1inchQuote(fromToken, toToken, amount) {
+            const fromAddress = TOKEN_ADDRESSES[fromToken];
+            const toAddress = TOKEN_ADDRESSES[toToken];
+            const amountWei = (amount * 1e18).toFixed(0);
+            
+            const url = `https://api.1inch.dev/swap/v5.2/1/quote?` +
+                `src=${fromAddress}&dst=${toAddress}&amount=${amountWei}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                return {
+                    toAmount: parseFloat(data.toAmount) / 1e18,
+                    estimatedGas: data.estimatedGas || 200000
+                };
+            } catch (error) {
+                console.error('1inch error:', error);
+                return simulateQuote(fromToken, toToken, amount);
+            }
+        }
+
+        async function getParaSwapQuote(fromToken, toToken, amount) {
+            // Simulation pour ParaSwap (l'API nécessite une clé)
+            return simulateQuote(fromToken, toToken, amount);
+        }
+
+        async function simulateQuote(fromToken, toToken, amount) {
+            // Simulation de prix (pour démo)
+            const rates = {
+                'ETH-USDT': 2500,
+                'ETH-USDC': 2500,
+                'ETH-DAI': 2500,
+                'USDT-ETH': 1/2500,
+                'USDC-ETH': 1/2500,
+                'DAI-ETH': 1/2500,
+                'USDT-USDC': 1,
+                'USDC-USDT': 1,
+                'DAI-USDT': 1
+            };
+            
+            const pair = `${fromToken}-${toToken}`;
+            const rate = rates[pair] || 1;
+            const toAmount = amount * rate * 0.997; // 0.3% fee
+            
+            return {
+                toAmount: toAmount,
+                estimatedGas: 200000
+            };
+        }
+
+        function displayQuote(quote) {
+            const fromToken = document.getElementById('fromToken').value;
+            const toToken = document.getElementById('toToken').value;
+            const fromAmount = parseFloat(document.getElementById('fromAmount').value);
+            
+            document.getElementById('toAmount').value = quote.toAmount.toFixed(6);
+            document.getElementById('quoteRate').textContent = 
+                `1 ${fromToken} = ${(quote.toAmount / fromAmount).toFixed(6)} ${toToken}`;
+            document.getElementById('quoteFee').textContent = '~$5-10 (gas)';
+            document.getElementById('quoteMin').textContent = 
+                `${(quote.toAmount * 0.99).toFixed(6)} ${toToken}`;
+            
+            document.getElementById('quoteBox').style.display = 'block';
+            document.getElementById('executeSwapBtn').style.display = 'inline-block';
+        }
+
+        async function executeSwap() {
+            if (!currentQuote) {
+                showMessage('⚠️ Obtenez d\'abord un prix', 'warning');
+                return;
+            }
+            
+            const fromToken = document.getElementById('fromToken').value;
+            const toToken = document.getElementById('toToken').value;
+            const amount = document.getElementById('fromAmount').value;
+            
+            if (!confirm(`Confirmer le swap?\n\n${amount} ${fromToken} → ${currentQuote.toAmount.toFixed(6)} ${toToken}\n\nvia ${selectedDex}`)) {
+                return;
+            }
+            
+            showMessage(`🔄 Préparation du swap via ${selectedDex}...`, 'warning');
+            
+            // Pour une vraie implémentation, vous auriez ici:
+            // 1. Approbation du token si nécessaire
+            // 2. Appel à l'API swap du DEX choisi
+            // 3. Signature de la transaction avec MetaMask
+            // 4. Attente de la confirmation
+            
+            showMessage('ℹ️ Fonctionnalité en développement. Pour un vrai swap, vous devrez :\n1. Approuver le token\n2. Signer la transaction\n3. Payer les frais de gas', 'warning');
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.className = 'message ' + type;
+            msg.textContent = text;
+            setTimeout(() => msg.innerHTML = '', 8000);
+        }
+    </script>
+</body>
+</html>index htlm
